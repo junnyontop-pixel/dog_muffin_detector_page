@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>치와와 vs 머핀 판독기</title>
+    <style>
+        body { font-family: 'Pretendard', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #f0f2f5; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; width: 350px; }
+        #preview { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; margin: 15px 0; display: none; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #007bff; color: white; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:disabled { background: #ccc; }
+        #result { margin-top: 20px; font-weight: bold; font-size: 1.2rem; color: #333; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>🐶 Chihuahua vs Muffin 🧁</h2>
+    <input type="file" id="fileInput" accept="image/*" hidden>
+    <button onclick="document.getElementById('fileInput').click()">사진 선택하기</button>
+    <img id="preview" alt="미리보기">
+    <button id="predictBtn" disabled>판독 시작!</button>
+    <div id="result"></div>
+</div>
+
+<script type="module">
+    import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
+
+    const fileInput = document.getElementById('fileInput');
+    const preview = document.getElementById('preview');
+    const predictBtn = document.getElementById('predictBtn');
+    const resultDiv = document.getElementById('result');
+
+    let selectedFile = null;
+
+    // 1. 사진 미리보기 로직
+    fileInput.onchange = (e) => {
+        selectedFile = e.target.files[0];
+        if (selectedFile) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                preview.src = event.target.result;
+                preview.style.display = 'block';
+                predictBtn.disabled = false;
+            };
+            reader.readAsDataURL(selectedFile);
+        }
+    };
+
+    // 2. AI 판독 로직
+    predictBtn.onclick = async () => {
+        resultDiv.innerText = "🧠 AI가 고민 중...";
+        predictBtn.disabled = true;
+
+        try {
+            // 네 Hugging Face Space에 연결
+            const client = await Client.connect("ayj8201/dog-muffin-detector");
+            
+            // API 호출
+            const result = await client.predict("/predict", { 
+                img: selectedFile 
+            });
+
+            // 결과 표시
+            resultDiv.innerHTML = `결과: ${result.data}`;
+        } catch (error) {
+            console.error(error);
+            resultDiv.innerText = "❌ 에러 발생!";
+        } finally {
+            predictBtn.disabled = false;
+        }
+    };
+</script>
+
+</body>
+</html>
