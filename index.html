@@ -8,8 +8,9 @@
         .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; width: 350px; }
         #preview { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; margin: 15px 0; display: none; }
         button { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #007bff; color: white; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:disabled { background: #ccc; }
-        #result { margin-top: 20px; font-weight: bold; font-size: 1.2rem; color: #333; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #result { margin-top: 20px; font-weight: bold; font-size: 1.1rem; color: #333; white-space: pre-line; }
     </style>
 </head>
 <body>
@@ -24,7 +25,8 @@
 </div>
 
 <script type="module">
-    import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
+    // 💡 handle_file을 추가로 임포트해야 에러가 안 나!
+    import { Client, handle_file } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
 
     const fileInput = document.getElementById('fileInput');
     const preview = document.getElementById('preview');
@@ -42,6 +44,7 @@
                 preview.src = event.target.result;
                 preview.style.display = 'block';
                 predictBtn.disabled = false;
+                resultDiv.innerText = ""; // 새로운 사진 선택 시 이전 결과 초기화
             };
             reader.readAsDataURL(selectedFile);
         }
@@ -49,23 +52,25 @@
 
     // 2. AI 판독 로직
     predictBtn.onclick = async () => {
+        if (!selectedFile) return;
+
         resultDiv.innerText = "🧠 AI가 고민 중...";
         predictBtn.disabled = true;
 
         try {
             // 네 Hugging Face Space에 연결
             const client = await Client.connect("ayj8201/dog-muffin-detector");
-            
-            // API 호출
+
+            // 💡 핵심 수정: selectedFile을 handle_file(selectedFile)로 감싸서 전달!
             const result = await client.predict("/predict", { 
-                img: selectedFile 
+                img: handle_file(selectedFile) 
             });
 
-            // 결과 표시
-            resultDiv.innerHTML = `결과: ${result.data}`;
+            // 결과 표시 (데이터가 배열로 오기 때문에 첫 번째 요소 [0]를 가져옴)
+            resultDiv.innerHTML = `✨ 판독 완료! ✨\n${result.data[0]}`;
         } catch (error) {
-            console.error(error);
-            resultDiv.innerText = "❌ 에러 발생!";
+            console.error("상세 에러:", error);
+            resultDiv.innerText = "❌ 에러가 발생했어요.\nHugging Face 스페이스가 깨어있는지 확인해봐!";
         } finally {
             predictBtn.disabled = false;
         }
