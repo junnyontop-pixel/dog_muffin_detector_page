@@ -10,7 +10,7 @@
         button { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #007bff; color: white; font-weight: bold; cursor: pointer; transition: 0.3s; }
         button:hover { background: #0056b3; }
         button:disabled { background: #ccc; cursor: not-allowed; }
-        #result { margin-top: 20px; font-weight: bold; font-size: 1.1rem; color: #333; white-space: pre-line; }
+        #result { margin-top: 20px; font-weight: bold; font-size: 1.1rem; color: #333; white-space: pre-line; min-height: 50px; }
     </style>
 </head>
 <body>
@@ -25,7 +25,7 @@
 </div>
 
 <script type="module">
-    // 💡 handle_file을 추가로 임포트해야 에러가 안 나!
+    // 💡 최신 Gradio 클라이언트와 파일 처리 도구 불러오기
     import { Client, handle_file } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
 
     const fileInput = document.getElementById('fileInput');
@@ -34,6 +34,19 @@
     const resultDiv = document.getElementById('result');
 
     let selectedFile = null;
+    let client = null;
+
+    // ⚡ [속도 개선] 페이지 로딩 시 서버에 미리 연결 (Pre-connect)
+    async function initClient() {
+        try {
+            client = await Client.connect("ayj8201/dog-muffin-detector");
+            console.log("✅ AI 서버 연결 완료!");
+        } catch (error) {
+            console.error("서버 연결 실패:", error);
+            resultDiv.innerText = "⚠️ 서버 연결에 실패했어요. 새로고침 해보세요.";
+        }
+    }
+    initClient();
 
     // 1. 사진 미리보기 로직
     fileInput.onchange = (e) => {
@@ -44,7 +57,7 @@
                 preview.src = event.target.result;
                 preview.style.display = 'block';
                 predictBtn.disabled = false;
-                resultDiv.innerText = ""; // 새로운 사진 선택 시 이전 결과 초기화
+                resultDiv.innerText = ""; 
             };
             reader.readAsDataURL(selectedFile);
         }
@@ -53,24 +66,27 @@
     // 2. AI 판독 로직
     predictBtn.onclick = async () => {
         if (!selectedFile) return;
+        
+        // 서버 연결이 아직 안 끝났을 경우 처리
+        if (!client) {
+            resultDiv.innerText = "⏳ 아직 서버와 연결 중이에요. 잠시만 기다려주세요!";
+            return;
+        }
 
-        resultDiv.innerText = "🧠 AI가 고민 중...";
+        resultDiv.innerText = "🚀 번개 속도로 분석 중...";
         predictBtn.disabled = true;
 
         try {
-            // 네 Hugging Face Space에 연결
-            const client = await Client.connect("ayj8201/dog-muffin-detector");
-
-            // 💡 핵심 수정: selectedFile을 handle_file(selectedFile)로 감싸서 전달!
+            // 💡 handle_file을 사용하여 이미지 데이터를 전송
             const result = await client.predict("/predict", { 
                 img: handle_file(selectedFile) 
             });
 
-            // 결과 표시 (데이터가 배열로 오기 때문에 첫 번째 요소 [0]를 가져옴)
+            // 결과 표시 (배열의 첫 번째 요소 출력)
             resultDiv.innerHTML = `✨ 판독 완료! ✨\n${result.data[0]}`;
         } catch (error) {
-            console.error("상세 에러:", error);
-            resultDiv.innerText = "❌ 에러가 발생했어요.\nHugging Face 스페이스가 깨어있는지 확인해봐!";
+            console.error("판독 에러:", error);
+            resultDiv.innerText = "❌ 에러 발생! 서버가 깨어있는지 확인해봐.";
         } finally {
             predictBtn.disabled = false;
         }
